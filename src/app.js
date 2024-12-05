@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.routes.js";
 
 const app = express();
 
@@ -13,5 +14,15 @@ app.use(cors({
     origin: "http://localhost:5173/",
     credentials: true
 }));
+
+
+// ROOT ROUTE
+app.get("/", (req, res) => {
+    return res.status(200).send('Hello, We are working with mern auth.')
+});
+
+// APPLICATION ROUTE
+app.use("/api/v1/auth", authRouter);
+
 
 export default app;
