@@ -2,7 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import UserModel from "../models/user.model.js";
-import { JWT_SECRET } from "../config/constants.js"
+import { JWT_SECRET, SMTP_USER } from "../config/constants.js"
+import { sendEmail } from "../config/nodemailer.js";
 
 
 
@@ -11,7 +12,7 @@ export const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-        return res.status(400).json({ success: true, message: "All fields are required." })
+        return res.status(400).json({ success: false, message: "All fields are required." })
     };
 
     try {
@@ -38,14 +39,16 @@ export const register = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
+        await sendEmail(email);
+
         return res.status(201).json({
             success: true,
-            message: "User account created successfully"
+            message: "Send a mail for user verification."
         });
 
     } catch (error) {
         return res.status(500).json({
-            message: error.mesage
+            message: error.message
         });
     };
 };
@@ -88,8 +91,6 @@ export const login = async (req, res) => {
     }
 };
 
-
-
 // USER LOG OUT CONTROLLER
 export const logout = async (req, res) => {
     try {
@@ -104,6 +105,85 @@ export const logout = async (req, res) => {
             message: "User logout successfully"
         });
 
+    } catch (error) {
+        return res.status(500).json({
+            message: error.mesage
+        });
+    };
+};
+
+
+// SEND VERIFICATION OTP TO THE USER MAIL
+export const sendVerifyOTP = async (req, res) => {
+    const { userId } = req.body;
+    try {
+        const user = await UserModel.findById(userId);
+        if (user.isAccountVerified) {
+            return res.status(400).json({
+                success: false, message: "Account already verified"
+            });
+        };
+
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+        user.verifyOtp = otp;
+        user.verifyOtpExpireAt = Date.now() + 24 * 60 * 60 * 1000;
+
+        await user.save();
+
+        const mailOptions = {
+            from: SMTP_USER,
+            to: user.email,
+            subject: "Account Verification OTP",
+            text: `Your OTP is ${otp} Verify your account using this OTP.`,
+            html: `<h1>Well come to Mern Auth</h1>`
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({
+            success: true,
+            message: "Verification OTP send this on Email."
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.mesage
+        });
+    }
+};
+
+
+//  VERIFY EMAIL
+export const verifyEmail = async (req, res) => {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) {
+        return res.status(400).json({ success: false, message: "All fields are required." })
+    }
+    try {
+        const user = await UserModel.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" })
+        };
+
+        if (user.verifyOtp === "" || user.verifyOtp !== otp) {
+            return res.status(400).json({ success: false, message: "Invalid OTP" })
+        };
+
+        if (user.verifyOtpExpireAt < Date.now()) {
+            return res.status(400).json({ success: false, message: "OTP Expired!" })
+        };
+
+        user.isAccountVerified == true;
+        user.verifyOtp = ""
+        user.verifyOtpExpireAt = 0;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Email verified successsfully."
+        });
     } catch (error) {
         return res.status(500).json({
             message: error.mesage
