@@ -12,7 +12,7 @@
   ],
   "author": "Sujon Sheikh",
   "license": "ISC",
-  "description": "mern auth",
+  "description": "mern auth system",
   "devDependencies": {
     "nodemon": "^3.1.7"
   },

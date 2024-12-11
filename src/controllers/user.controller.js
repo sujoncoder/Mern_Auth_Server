@@ -6,11 +6,13 @@ export const getUser = async (req, res) => {
     try {
         const { userId } = req.body;
 
+        // check user using user id
         const user = await UserModel.findById(userId);
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found!." })
+            return res.status(404).json({ success: false, message: "User not found !" })
         };
 
+        // send to the response
         return res.status(200).json({
             success: true,
             userData: {
